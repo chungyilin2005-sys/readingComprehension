@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>英文閱讀測驗系統</title>
+    <style>
+        :root {
+            --primary-color: #2196F3;
+            --primary-dark: #1976D2;
+            --accent-color: #4CAF50;
+            --text-color: #333;
+            --bg-color: #f5f5f5;
+            --card-bg: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft JhengHei", sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 16px;
+            background-color: var(--bg-color);
+            flex: 1;
+            overflow-y: auto;
+            padding-bottom: 80px; /* Space for bottom buttons if needed */
+        }
+
+        /* Card Style for sections */
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 16px;
+        }
+
+        h1, h2, h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+
+        h1 { font-size: 1.5rem; text-align: center; }
+        h2 { font-size: 1.3rem; }
+        h3 { font-size: 1.1rem; }
+
+        /* Button Styling */
+        button, .file-label {
+            display: inline-block;
+            padding: 12px 20px;
+            margin: 6px 4px;
+            border: none;
+            border-radius: 50px; /* Rounded pill shape */
+            background-color: var(--primary-color);
+            color: white;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            text-align: center;
+            transition: transform 0.1s, background-color 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        button:active, .file-label:active {
+            transform: scale(0.98);
+            background-color: var(--primary-dark);
+        }
+
+        button:disabled {
+            background-color: #bdbdbd;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        /* Specific Button Colors */
+        .control-btn.speak { background-color: var(--accent-color); }
+        #restartBtn { background-color: #FF5722; width: 100%; }
+        #startBtn { width: 100%; margin: 20px 0; font-size: 1.2rem; }
+        
+        /* File Input */
+        #fileInput { display: none; }
+        .file-label {
+            display: block;
+            text-align: center;
+            background-color: #607D8B;
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        /* Layout Utilities */
+        .hidden { display: none !important; }
+        
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 20px;
+            background: #fff;
+            padding: 10px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .button-group button {
+            margin: 0;
+            flex: 1 1 auto;
+            font-size: 14px;
+            padding: 10px;
+            min-width: 80px;
+        }
+
+        /* Text Content */
+        #reading {
+            font-size: 18px;
+            line-height: 1.8;
+            text-align: justify;
+            margin-bottom: 20px;
+        }
+
+        .clickable-word {
+            cursor: pointer;
+            border-bottom: 1px dotted #999;
+        }
+        .clickable-word:hover, .clickable-word:active {
+            color: var(--primary-color);
+            background-color: #FFF9C4;
+        }
+
+        #translation {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px dashed #ccc;
+            color: #555;
+            font-size: 16px;
+        }
+
+        /* Options */
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .option {
+            padding: 16px;
+            background: #fff;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+
+        .option:active {
+            background-color: #f5f5f5;
+        }
+
+        .option.selected {
+            border-color: var(--primary-color);
+            background-color: #E3F2FD;
+        }
+
+        /* Feedback */
+        .feedback {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        .feedback.correct {
+            background-color: #E8F5E9;
+            color: #2E7D32;
+            border: 1px solid #C8E6C9;
+        }
+        .feedback.incorrect {
+            background-color: #FFEBEE;
+            color: #C62828;
+            border: 1px solid #FFCDD2;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            display: flex;
+            justify-content: space-between;
+            background: #37474F;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+        }
+
+        /* Audio Player */
+        #audioPlayer {
+            width: 100%;
+            margin: 15px 0;
+            border-radius: 50px;
+        }
+
+        /* Result Screen */
+        #resultScreen {
+            text-align: center;
+            padding: 40px 20px;
+        }
+        #resultText {
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+            line-height: 2;
+        }
+
+        /* Footer buttons stick to bottom on quiz */
+        .footer-actions {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .footer-actions button {
+            width: 100%;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 開始畫面 -->
+        <div id="startScreen" class="card">
+            <h1>英文閱讀測驗</h1>
+            <div style="text-align: center; margin: 40px 0;">
+                <p>請載入題庫檔案 (.json)</p>
+                <label class="file-label" for="fileInput">📁 選擇檔案</label>
+                <input type="file" id="fileInput" accept=".json">
+                <p id="fileNameDisplay" style="color: #666; font-size: 0.9rem;"></p>
+            </div>
+            <button id="startBtn" disabled>開始測驗</button>
+        </div>
+
+        <!-- 測驗畫面 -->
+        <div id="quizScreen" class="hidden">
+            <div class="progress-container">
+                <span>分數: <span id="score">0</span></span>
+                <span>進度: <span id="progress">0/0</span></span>
+            </div>
+
+            <div class="button-group">
+                <button id="speakBtn" class="control-btn speak">🔊 朗讀</button>
+                <button id="translationToggle">中</button>
+                <button id="playAudioBtn" class="control-btn">🎵 音頻</button>
+                <button id="copyBtn">📋 複製</button>
+            </div>
+
+            <div class="card">
+                <h2 id="title"></h2>
+                <div id="reading">
+                    <div id="text"></div>
+                    <div id="translation" class="hidden"></div>
+                </div>
+            </div>
+
+            <div class="card" id="questionSection">
+                <h3 id="questionText"></h3>
+                <div id="options" class="options"></div>
+                <div id="feedback" class="feedback hidden"></div>
+                
+                <div class="footer-actions">
+                    <button id="nextBtn" class="hidden">下一題</button>
+                    <button id="finishBtn" class="hidden">完成測驗</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 結果畫面 -->
+        <div id="resultScreen" class="hidden card">
+            <h2>測驗結果</h2>
+            <div id="resultText"></div>
+            <button id="restartBtn">重新開始</button>
+        </div>
+    </div>
+
+    <script>
+        let readings = [];
+        let currentReadingIndex = 0;
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let totalQuestions = 0;
+        let selectedAnswer = null;
+        let currentUtterance = null;
+        let isSpeaking = false;
+
+        // DOM Elements
+        const startScreen = document.getElementById('startScreen');
+        const quizScreen = document.getElementById('quizScreen');
+        const resultScreen = document.getElementById('resultScreen');
+        const fileInput = document.getElementById('fileInput');
+        const fileLabel = document.querySelector('.file-label');
+        const fileNameDisplay = document.getElementById('fileNameDisplay');
+        const startBtn = document.getElementById('startBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const finishBtn = document.getElementById('finishBtn');
+        const restartBtn = document.getElementById('restartBtn');
+        const translationToggle = document.getElementById('translationToggle');
+        const copyBtn = document.getElementById('copyBtn');
+        const speakBtn = document.getElementById('speakBtn');
+        const playAudioBtn = document.getElementById('playAudioBtn');
+
+        // Copy Function (Enhanced for Mobile)
+        copyBtn.addEventListener('click', copyArticle);
+
+        function copyArticle() {
+            const reading = readings[currentReadingIndex];
+            const textToCopy = `${reading.title}\n\n${reading.text}`;
+            
+            // Fallback for older WebViews
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(textToCopy)
+                    .then(showCopySuccess)
+                    .catch(err => fallbackCopyTextToClipboard(textToCopy));
+            } else {
+                fallbackCopyTextToClipboard(textToCopy);
+            }
+        }
+
+        function fallbackCopyTextToClipboard(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";  // Avoid scrolling to bottom
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                const successful = document.execCommand('copy');
+                if(successful) showCopySuccess();
+                else alert('複製失敗');
+            } catch (err) {
+                alert('複製失敗，請手動複製');
+            }
+            document.body.removeChild(textArea);
+        }
+
+        function showCopySuccess() {
+            const originalText = copyBtn.textContent;
+            copyBtn.textContent = '✅ 已複製';
+            setTimeout(() => {
+                copyBtn.textContent = originalText;
+            }, 2000);
+        }
+
+        // File Upload
+        fileInput.addEventListener('change', function(e) {
+            if (e.target.files.length > 0) {
+                const file = e.target.files[0];
+                fileNameDisplay.textContent = `已選擇：${file.name}`;
+                fileLabel.style.backgroundColor = '#4CAF50';
+                fileLabel.textContent = '✅ 檔案已就緒';
+                
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    try {
+                        const data = JSON.parse(evt.target.result);
+                        if(data.readings) {
+                            readings = data.readings;
+                            totalQuestions = readings.reduce((total, r) => total + r.questions.length, 0);
+                            startBtn.disabled = false;
+                        } else {
+                            alert('JSON 格式錯誤：找不到 readings 欄位');
+                        }
+                    } catch (error) {
+                        alert('檔案解析錯誤，請確認是有效的 JSON 檔');
+                    }
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        // Event Listeners
+        startBtn.addEventListener('click', startQuiz);
+        nextBtn.addEventListener('click', showNextQuestion);
+        finishBtn.addEventListener('click', showResults);
+        restartBtn.addEventListener('click', restart);
+        translationToggle.addEventListener('click', toggleTranslation);
+        speakBtn.addEventListener('click', speakText);
+        playAudioBtn.addEventListener('click', playAudio);
+
+        // Quiz Logic
+        function startQuiz() {
+            startScreen.classList.add('hidden');
+            quizScreen.classList.remove('hidden');
+            window.scrollTo(0, 0);
+            showCurrentReading();
+            showCurrentQuestion();
+            updateProgress();
+        }
+
+        function showCurrentReading() {
+            stopSpeaking();
+            const reading = readings[currentReadingIndex];
+            document.getElementById('title').textContent = reading.title;
+            document.getElementById('text').textContent = reading.text;
+            document.getElementById('translation').textContent = reading.translation;
+            makeWordsClickable();
+            
+            // Remove old audio player if exists
+            const existingAudio = document.getElementById('audioPlayer');
+            if (existingAudio) existingAudio.remove();
+        }
+
+        function showCurrentQuestion() {
+            const reading = readings[currentReadingIndex];
+            const question = reading.questions[currentQuestionIndex];
+            
+            document.getElementById('questionText').textContent = `Q${currentQuestionIndex + 1}. ${question.question}`;
+            
+            const optionsContainer = document.getElementById('options');
+            optionsContainer.innerHTML = '';
+            
+            question.options.forEach((option) => {
+                const optionElement = document.createElement('div');
+                optionElement.className = 'option';
+                optionElement.textContent = option;
+                // Add touch feedback
+                optionElement.addEventListener('click', () => selectOption(optionElement, option));
+                optionsContainer.appendChild(optionElement);
+            });
+
+            document.getElementById('feedback').classList.add('hidden');
+            nextBtn.classList.add('hidden');
+            finishBtn.classList.add('hidden');
+            selectedAnswer = null;
+            
+            // Scroll to question area lightly
+            document.getElementById('questionSection').scrollIntoView({behavior: 'smooth', block: 'start'});
+        }
+
+        function selectOption(optionElement, answer) {
+            if (selectedAnswer !== null) return;
+
+            const options = document.querySelectorAll('.option');
+            options.forEach(opt => opt.classList.remove('selected'));
+            optionElement.classList.add('selected');
+            selectedAnswer = answer;
+
+            const reading = readings[currentReadingIndex];
+            const question = reading.questions[currentQuestionIndex];
+            const feedback = document.getElementById('feedback');
+            
+            if (answer === question.correctAnswer) {
+                score++;
+                feedback.textContent = '🎉 正確！ ' + question.explanation;
+                feedback.className = 'feedback correct';
+            } else {
+                feedback.textContent = '❌ 錯誤。正確答案是：' + question.correctAnswer + '\n' + question.explanation;
+                feedback.className = 'feedback incorrect';
+            }
+            feedback.classList.remove('hidden');
+
+            const isLastQuestion = currentReadingIndex === readings.length - 1 && 
+                                 currentQuestionIndex === reading.questions.length - 1;
+            
+            if (isLastQuestion) {
+                finishBtn.classList.remove('hidden');
+            } else {
+                nextBtn.classList.remove('hidden');
+            }
+        }
+
+        function showNextQuestion() {
+            stopSpeaking();
+            const currentReading = readings[currentReadingIndex];
+            if (currentQuestionIndex < currentReading.questions.length - 1) {
+                currentQuestionIndex++;
+                showCurrentQuestion();
+            } else {
+                currentReadingIndex++;
+                currentQuestionIndex = 0;
+                showCurrentReading();
+                showCurrentQuestion();
+            }
+            updateProgress();
+            window.scrollTo(0, 0);
+        }
+
+        function updateProgress() {
+            const currentQuestionNumber = readings.slice(0, currentReadingIndex)
+                .reduce((total, reading) => total + reading.questions.length, 0) 
+                + currentQuestionIndex + 1;
+            document.getElementById('progress').textContent = `${currentQuestionNumber}/${totalQuestions}`;
+            document.getElementById('score').textContent = score;
+        }
+
+        // Feature: Translation
+        function toggleTranslation() {
+            const translation = document.getElementById('translation');
+            translation.classList.toggle('hidden');
+            translationToggle.textContent = translation.classList.contains('hidden') ? '中' : '隱';
+        }
+
+        // Feature: Clickable Words
+        function makeWordsClickable() {
+            const textElement = document.getElementById('text');
+            const text = textElement.textContent;
+            const words = text.split(/\s+/);
+            
+            textElement.innerHTML = words.map(word => {
+                const cleanWord = word.replace(/[.,!?;:"'()]/g, '');
+                if (cleanWord.length > 0) {
+                    return `<span class="clickable-word" onclick="lookupWord('${cleanWord}')">${word}</span>`;
+                }
+                return word;
+            }).join(' ');
+        }
+
+        window.lookupWord = function(word) {
+            // Using window.open in WebView might require specific settings, but usually works
+            const url = `https://dictionary.cambridge.org/zht/詞典/英語-漢語-繁體/${encodeURIComponent(word)}`;
+            window.open(url, '_blank');
+        }
+
+        // Feature: Text to Speech
+        function speakText() {
+            if (isSpeaking) {
+                stopSpeaking();
+                return;
+            }
+
+            const reading = readings[currentReadingIndex];
+            const text = reading.text;
+            const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+            
+            isSpeaking = true;
+            speakBtn.textContent = '⏹ 停止';
+            speakBtn.style.backgroundColor = '#f44336';
+            
+            speakSentence(sentences, 0);
+        }
+
+        function speakSentence(sentences, index) {
+            if (index >= sentences.length || !isSpeaking) {
+                stopSpeaking();
+                return;
+            }
+
+            currentUtterance = new SpeechSynthesisUtterance(sentences[index]);
+            currentUtterance.lang = 'en-US';
+            currentUtterance.rate = 0.9;
+            
+            currentUtterance.onend = () => {
+                if (isSpeaking) speakSentence(sentences, index + 1);
+            };
+            
+            currentUtterance.onerror = (e) => {
+                console.error(e);
+                if (isSpeaking) setTimeout(() => speakSentence(sentences, index), 500);
+            }
+
+            window.speechSynthesis.speak(currentUtterance);
+        }
+
+        function stopSpeaking() {
+            isSpeaking = false;
+            window.speechSynthesis.cancel();
+            speakBtn.textContent = '🔊 朗讀';
+            speakBtn.style.backgroundColor = ''; // Reset to default CSS class color
+        }
+
+        // Keep speech active fix for Android
+        setInterval(() => {
+            if (isSpeaking && window.speechSynthesis.speaking) {
+                window.speechSynthesis.pause();
+                window.speechSynthesis.resume();
+            }
+        }, 10000);
+
+        // Feature: Audio Player
+        function playAudio() {
+            const reading = readings[currentReadingIndex];
+            const audioFileName = `${reading.title}.mp3`;
+            
+            let audioElement = document.getElementById('audioPlayer');
+            
+            if (!audioElement) {
+                audioElement = document.createElement('audio');
+                audioElement.id = 'audioPlayer';
+                audioElement.controls = true;
+                // Insert after title
+                document.getElementById('title').after(audioElement);
+            }
+            
+            audioElement.src = audioFileName;
+            
+            audioElement.play().then(() => {
+                console.log('Playing audio');
+            }).catch((error) => {
+                alert(`無法播放音頻：${audioFileName}\n如果是APK，請確認音頻檔案已打包。如果是網頁，請確認檔案在同一目錄。`);
+            });
+        }
+
+        function showResults() {
+            quizScreen.classList.add('hidden');
+            resultScreen.classList.remove('hidden');
+            const percentage = (score / totalQuestions) * 100;
+            
+            let comment = '';
+            if(percentage === 100) comment = '太厲害了！完美！ 🌟';
+            else if(percentage >= 80) comment = '很棒的成績！ 👍';
+            else if(percentage >= 60) comment = '及格了，繼續加油！ 💪';
+            else comment = '再多練習一下吧！ 📚';
+
+            document.getElementById('resultText').innerHTML = 
+                `<div style="font-size: 3rem; color: var(--primary-color);">${Math.round(percentage)}%</div>
+                <p>${comment}</p>
+                <p>答對題數：${score} / ${totalQuestions}</p>`;
+        }
+
+        function restart() {
+            currentReadingIndex = 0;
+            currentQuestionIndex = 0;
+            score = 0;
+            selectedAnswer = null;
+            fileInput.value = '';
+            fileLabel.style.backgroundColor = '';
+            fileLabel.textContent = '📁 選擇檔案';
+            fileNameDisplay.textContent = '';
+            startBtn.disabled = true;
+            resultScreen.classList.add('hidden');
+            startScreen.classList.remove('hidden');
+        }
+
+        window.onbeforeunload = function() {
+            stopSpeaking();
+        };
+    </script>
+</body>
+</html>
