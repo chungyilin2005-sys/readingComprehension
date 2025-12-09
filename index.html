@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>英文閱讀測驗系統</title>
+    <title>英文閱讀測驗系統 V11</title>
     <style>
         :root {
             --primary-color: #2196F3;
@@ -305,8 +305,11 @@
         let score = 0;
         let totalQuestions = 0;
         let selectedAnswer = null;
-        let currentUtterance = null;
         let isSpeaking = false;
+        
+        // Android Speech Fix Variables
+        let speechInterval = null;
+        window.currentUtterance = null; // Make global to prevent GC
 
         // DOM Elements
         const startScreen = document.getElementById('startScreen');
@@ -531,12 +534,13 @@
         }
 
         window.lookupWord = function(word) {
-            // Using window.open in WebView might require specific settings, but usually works
             const url = `https://dictionary.cambridge.org/zht/詞典/英語-漢語-繁體/${encodeURIComponent(word)}`;
             window.open(url, '_blank');
         }
 
-        // Feature: Text to Speech
+        // ---------------------------------------------------------
+        // Feature: Text to Speech (Robust Android/Edge Fix V11)
+        // ---------------------------------------------------------
         function speakText() {
             if (isSpeaking) {
                 stopSpeaking();
@@ -545,11 +549,18 @@
 
             const reading = readings[currentReadingIndex];
             const text = reading.text;
-            const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+            
+            // Robust splitting: Split by sentence delimiters but also handle newlines
+            // This prevents creating huge chunks if the text lacks punctuation
+            // The regex matches sequences of non-punctuation followed by punctuation OR newlines
+            const sentences = text.match(/[^.!?\n]+[.!?\n]+/g) || [text];
             
             isSpeaking = true;
             speakBtn.textContent = '⏹ 停止';
             speakBtn.style.backgroundColor = '#f44336';
+            
+            // Start the periodic "poke" to keep Android speech service alive
+            startSpeechKeepAlive();
             
             speakSentence(sentences, 0);
         }
@@ -560,36 +571,64 @@
                 return;
             }
 
-            currentUtterance = new SpeechSynthesisUtterance(sentences[index]);
-            currentUtterance.lang = 'en-US';
-            currentUtterance.rate = 0.9;
-            
-            currentUtterance.onend = () => {
-                if (isSpeaking) speakSentence(sentences, index + 1);
-            };
-            
-            currentUtterance.onerror = (e) => {
-                console.error(e);
-                if (isSpeaking) setTimeout(() => speakSentence(sentences, index), 500);
+            // Cancel any pending speech to ensure clean slate
+            window.speechSynthesis.cancel();
+
+            const textChunk = sentences[index].trim();
+            if (!textChunk) {
+                // Skip empty chunks (e.g. double newlines)
+                speakSentence(sentences, index + 1);
+                return;
             }
 
-            window.speechSynthesis.speak(currentUtterance);
+            // Create utterance and attach to window to prevent Garbage Collection
+            window.currentUtterance = new SpeechSynthesisUtterance(textChunk);
+            window.currentUtterance.lang = 'en-US';
+            window.currentUtterance.rate = 0.9; // Slightly slower for better clarity
+            
+            // Event: On End -> Next Sentence
+            window.currentUtterance.onend = function() {
+                if (isSpeaking) {
+                    speakSentence(sentences, index + 1);
+                }
+            };
+            
+            // Event: On Error -> Try Next Sentence (Don't just stop)
+            window.currentUtterance.onerror = function(e) {
+                console.error('TTS Error:', e);
+                if (isSpeaking && e.error !== 'interrupted' && e.error !== 'canceled') {
+                    // If error isn't due to us stopping it, try next sentence
+                    setTimeout(() => speakSentence(sentences, index + 1), 500);
+                }
+            }
+
+            window.speechSynthesis.speak(window.currentUtterance);
+        }
+
+        function startSpeechKeepAlive() {
+            if (speechInterval) clearInterval(speechInterval);
+            
+            // Android Chrome/Edge TTS engine times out after ~15 seconds of speaking.
+            // We pause and resume every 14 seconds to reset the internal timer.
+            speechInterval = setInterval(() => {
+                if (window.speechSynthesis.speaking) {
+                    window.speechSynthesis.pause();
+                    window.speechSynthesis.resume();
+                }
+            }, 14000); 
         }
 
         function stopSpeaking() {
             isSpeaking = false;
             window.speechSynthesis.cancel();
-            speakBtn.textContent = '🔊 朗讀';
-            speakBtn.style.backgroundColor = ''; // Reset to default CSS class color
-        }
-
-        // Keep speech active fix for Android
-        setInterval(() => {
-            if (isSpeaking && window.speechSynthesis.speaking) {
-                window.speechSynthesis.pause();
-                window.speechSynthesis.resume();
+            if (speechInterval) {
+                clearInterval(speechInterval);
+                speechInterval = null;
             }
-        }, 10000);
+            speakBtn.textContent = '🔊 朗讀';
+            speakBtn.style.backgroundColor = ''; 
+        }
+        // ---------------------------------------------------------
 
         // Feature: Audio Player
         function playAudio() {
